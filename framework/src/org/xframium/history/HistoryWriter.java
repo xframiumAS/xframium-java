@@ -57,7 +57,7 @@ public class HistoryWriter
         this.rootFolder = rootFolder;
     }
 
-    public void addExecution( String testName, Device device, long startTime, long stopTime, int passed, int failed, int ignored, boolean success, String indexFile )
+    public void addExecution( String testName, Device device, long startTime, long stopTime, int passed, int failed, int ignored, boolean success, String indexFile, int scriptFailures, int configFailures, int applicationFailures, int cloudFailures )
     {
         String caseName = testName;
         String persona = null;
@@ -136,7 +136,7 @@ public class HistoryWriter
 
     }
 
-    public void writeData( String fileName, long startTime, long endTime, int env, int oss, int pass, int fail, TreeMap<String, int[]> envMap )
+    public void writeData( String fileName, long startTime, long endTime, int env, int oss, int pass, int fail, TreeMap<String, int[]> envMap, int scriptFailures, int configFailures, int applicationFailures, int cloudFailures )
     {
         OutputStream os = null;
 
@@ -323,14 +323,10 @@ public class HistoryWriter
         stringBuilder.append( "<canvas id=\"executionTime\" data-title=\"Execution Time (s)\" data-labels='[" );
         for ( TestSuite ts : suiteSet )
         {
-        	stringBuilder.append( "\"" ).append( ( ts.getEndTime() - ts.getStartTime() ) / 1000 ).append( "\",");
+        	stringBuilder.append( "\"" ).append( chartDateFormat.format( new Date( ts.getStartTime() ) ) ).append( "\",");
         }
-        stringBuilder.deleteCharAt( stringBuilder.length() - 1 ).append( "]' data-fail=\"[" );
-        for ( TestSuite ts : suiteSet )
-        {
-        	stringBuilder.append( ts.getFail() ).append( "," );
-        }
-        stringBuilder.deleteCharAt( stringBuilder.length() - 1 ).append( "]\" data-pass=\"[" );
+
+        stringBuilder.deleteCharAt( stringBuilder.length() - 1 ).append( "]' data-pass=\"[" );
         for ( TestSuite ts : suiteSet )
         {
         	stringBuilder.append( ( ts.getEndTime() - ts.getStartTime() ) / 1000 ).append( "," );
