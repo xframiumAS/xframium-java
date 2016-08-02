@@ -40,7 +40,7 @@ import org.xframium.page.keyWord.step.spi.KWSLoopBreak;
 /**
  * The Class KWSLoop.
  */
-public class KWSCustomLoop extends AbstractKeyWordStep implements KeyWordStep
+public class KWSLoop extends AbstractKeyWordStep implements KeyWordStep
 {
 	/** The Constant DATA_START. */
 	private static final String DATA_START = "data{";
