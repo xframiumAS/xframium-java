@@ -45,6 +45,7 @@ import org.xframium.page.keyWord.KeyWordStep.ValidationType;
 import org.xframium.page.keyWord.KeyWordTest;
 import org.xframium.page.keyWord.KeyWordToken;
 import org.xframium.page.keyWord.KeyWordToken.TokenType;
+import org.xframium.page.keyWord.gherkinExtension.XMLFormatter;
 import org.xframium.page.keyWord.provider.xsd.Import;
 import org.xframium.page.keyWord.provider.xsd.Model;
 import org.xframium.page.keyWord.provider.xsd.ObjectFactory;
@@ -54,6 +55,7 @@ import org.xframium.page.keyWord.provider.xsd.Step;
 import org.xframium.page.keyWord.provider.xsd.Test;
 import org.xframium.page.keyWord.provider.xsd.Token;
 import org.xframium.page.keyWord.step.KeyWordStepFactory;
+import gherkin.parser.Parser;
 
 // TODO: Auto-generated Javadoc
 /**
@@ -68,6 +70,7 @@ public class XMLKeyWordProvider implements KeyWordProvider
 	
 	/** The file name. */
 	private File fileName;
+	private File rootFolder;
 	
 	/** The resource name. */
 	private String resourceName;
@@ -81,6 +84,7 @@ public class XMLKeyWordProvider implements KeyWordProvider
 	public XMLKeyWordProvider( File fileName )
 	{
 		this.fileName = fileName;
+		rootFolder = fileName.getParentFile();
 	}
 
 	/**
@@ -136,7 +140,6 @@ public class XMLKeyWordProvider implements KeyWordProvider
 
 		try
 		{
-
 		    JAXBContext jc = JAXBContext.newInstance( ObjectFactory.class );
             Unmarshaller u = jc.createUnmarshaller();
             JAXBElement<?> rootElement = (JAXBElement<?>)u.unmarshal( inputStream );
@@ -215,6 +218,19 @@ public class XMLKeyWordProvider implements KeyWordProvider
 		}
 	}
 
+	private File findFile( File useFile )
+    {
+        if ( useFile.exists() || useFile.isAbsolute() )
+            return useFile;
+        
+        File myFile = new File( rootFolder, useFile.getPath() );
+        if ( myFile.exists() )
+            return myFile;
+        
+        throw new IllegalArgumentException( "Could not find " + useFile.getName() + " at " + useFile.getPath() + " or " + myFile.getAbsolutePath() );
+        
+    }
+	
 	/**
 	 * Parses the imports.
 	 *
@@ -228,8 +244,27 @@ public class XMLKeyWordProvider implements KeyWordProvider
 	        {
 	            if (log.isInfoEnabled())
                     log.info( "Attempting to import file [" + Paths.get(".").toAbsolutePath().normalize().toString() + imp.getFileName() + "]" );
-	            
-	            readElements( new FileInputStream( imp.getFileName() ), imp.isIncludeTests(), imp.isIncludeFunctions() );
+	            if ( imp.getFileName().toLowerCase().endsWith( ".xml" ) )
+	                readElements( new FileInputStream( findFile( new File( imp.getFileName() ) ) ), imp.isIncludeTests(), imp.isIncludeFunctions() );
+	            else if ( imp.getFileName().toLowerCase().endsWith( ".bdd" ) )
+	            {
+	                Parser bddParser = new Parser( new XMLFormatter( PageDataManager.instance().getDataProvider() ) );
+	                
+	                byte[] buffer = new byte[512];
+	                int bytesRead = 0;
+	                
+	                FileInputStream is = new FileInputStream( findFile( new File( imp.getFileName() ) ) );
+	                StringBuilder s = new StringBuilder();
+	                
+	                while ( ( bytesRead = is.read( buffer ) ) > 0 )
+	                {
+	                    s.append( new String( buffer, 0, bytesRead ) );
+	                }
+	                
+	                is.close();
+	                
+	                bddParser.parse( s.toString(), "", 0 );
+	            }
 	        }
 	        catch( Exception e )
 	        {
@@ -343,18 +378,26 @@ public class XMLKeyWordProvider implements KeyWordProvider
 
 	    for ( Parameter p : pList )
 	    {
+	        ParameterType ptype = ParameterType.valueOf( p.getType() );
+	        KeyWordParameter kp = new KeyWordParameter( ptype, p.getValue(), p.getName(), p.getUsage() );
 	        
-	        KeyWordParameter kp = new KeyWordParameter( ParameterType.valueOf( p.getType() ), p.getValue() );
+	        if ( p.getToken() != null && !p.getToken().isEmpty() )
+	        {
+	            for ( Token t : p.getToken() )
+	            {
+	                kp.addToken( new KeyWordToken( TokenType.valueOf(t.getType() ), t.getValue(), t.getName() ) );
+	            }
+	        }
 	        
-	        if ( p.equals( ParameterType.FILE ) )
+	        if ( ParameterType.FILE.equals( ptype ))
 	        {
 	            File dataFile = new File( p.getValue() );
 	            if ( dataFile.isFile() )
 	            {
 	                try
 	                {
-    	                kp.setValue( readFile( new FileInputStream( dataFile ) ) );
-    	                kp.setFileName( dataFile.getAbsolutePath() );
+                            kp.setValue( readFile( new FileInputStream( dataFile ) ) );
+                            kp.setFileName( dataFile.getAbsolutePath() );
 	                }
 	                catch( FileNotFoundException e )
 	                {
@@ -384,7 +427,7 @@ public class XMLKeyWordProvider implements KeyWordProvider
 	                        }
 	                    }
 	                }
-	            }  
+	            } 
 	        }
 	        
 	        parentStep.addParameter( kp );

@@ -28,6 +28,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
+import org.xframium.exception.ScriptConfigurationException;
+import org.xframium.exception.XFramiumException;
 import org.xframium.integrations.perfectoMobile.rest.services.Imaging.Resolution;
 import org.xframium.page.BY;
 import org.xframium.page.PageManager;
@@ -70,7 +72,7 @@ public abstract class AbstractElement implements Element
 	 *
 	 * @param currentValue the current value
 	 */
-	protected abstract void _setValue( String currentValue );
+	protected abstract void _setValue( String currentValue, SetMethod setMethod );
 
 	/**
 	 * _get value.
@@ -233,7 +235,7 @@ public abstract class AbstractElement implements Element
 		
 		String[] tokenPair = tokenPairValue.split( "=" );
 		if ( tokenPair.length != 2 )
-			throw new IllegalArgumentException( "You must specify a token in the format of name=value" );
+			throw new ScriptConfigurationException( "You must specify a token in the format of name=value" );
 		
 		tokenMap.put( tokenPair[ 0 ].trim(), tokenPair[ 1 ].trim() );
 		
@@ -350,7 +352,10 @@ public abstract class AbstractElement implements Element
 		}
 		catch( Exception e )
 		{
-			throw new IllegalStateException( e );
+		    if ( e instanceof XFramiumException )
+                throw e;
+            else
+                throw new ScriptConfigurationException( e.getMessage() );
 		}
 		finally
 		{
@@ -376,7 +381,10 @@ public abstract class AbstractElement implements Element
         }
         catch( Exception e )
         {
-            throw new IllegalStateException( e );
+            if ( e instanceof XFramiumException )
+                throw e;
+            else
+                throw new ScriptConfigurationException( e.getMessage() );
         }
         finally
         {
@@ -402,7 +410,10 @@ public abstract class AbstractElement implements Element
 		}
 		catch( Exception e )
 		{
-			throw new IllegalStateException( e );
+		    if ( e instanceof XFramiumException )
+                throw e;
+            else
+                throw new ScriptConfigurationException( e.getMessage() );
 		}
 		finally
 		{
@@ -428,7 +439,10 @@ public abstract class AbstractElement implements Element
 		}
 		catch( Exception e )
 		{
-			throw new IllegalStateException( e );
+		    if ( e instanceof XFramiumException )
+                throw e;
+            else
+                throw new ScriptConfigurationException( e.getMessage() );
 		}
 		finally
 		{
@@ -449,6 +463,7 @@ public abstract class AbstractElement implements Element
         boolean success = false;
         try
         {
+            
             returnValue = _waitFor( timeOut, timeUnit, waitType, value );
             success = true;
             
@@ -501,11 +516,14 @@ public abstract class AbstractElement implements Element
 		{
 			returnValue = _getAttribute( attributeName );
 			success = true;
-			PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "attribute(" + returnValue + ")", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false );
+			PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "attribute", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false, new String[] { attributeName, returnValue } );
 		}
 		catch( Exception e )
 		{
-			throw new IllegalStateException( e );
+		    if ( e instanceof XFramiumException )
+                throw e;
+            else
+                throw new ScriptConfigurationException( e.getMessage() );
 		}
 		finally
 		{
@@ -528,11 +546,14 @@ public abstract class AbstractElement implements Element
 		{
 			returnValue = _getImage( resolution );
 			success = true;
-			PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "elementImage", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false );
+			PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "image", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false, new String[] { resolution.name() } );
 		}
 		catch( Exception e )
 		{
-			throw new IllegalStateException( e );
+		    if ( e instanceof XFramiumException )
+                throw e;
+            else
+                throw new ScriptConfigurationException( e.getMessage() );
 		}
 		finally
 		{
@@ -548,24 +569,33 @@ public abstract class AbstractElement implements Element
 	@Override
 	public void setValue( String currentValue )
 	{
-		long startTime = System.currentTimeMillis();
-		boolean success = false;
-		try
-		{
-			_setValue( currentValue );
-			success = true;
-			PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "setValue(" + currentValue + ")", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false );
-		}
-		catch( Exception e )
-		{
-			throw new IllegalStateException( e );
-		}
-		finally
-		{
-			if ( timed )
-				PageManager.instance().addExecutionTiming( getExecutionId(), getDeviceName(), pageName + "." + elementName + ".setValue(" + currentValue + ")", System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, "", 0 );
-		}
-
+		setValue( currentValue, SetMethod.DEFAULT );
+	}
+	
+	@Override
+	public void setValue( String currentValue, SetMethod setMethod )
+	{
+	    long startTime = System.currentTimeMillis();
+        boolean success = false;
+        try
+        {
+            _setValue( currentValue, setMethod );
+            success = true;
+            PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "setValue", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false, new String[] { currentValue } );
+        }
+        catch( Exception e )
+        {
+            if ( e instanceof XFramiumException )
+                throw e;
+            else
+                throw new ScriptConfigurationException( e.getMessage() );
+        }
+        finally
+        {
+            if ( timed )
+                PageManager.instance().addExecutionTiming( getExecutionId(), getDeviceName(), pageName + "." + elementName + ".setValue(" + currentValue + ")", System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, "", 0 );
+        }
+	    
 	}
 
 	
@@ -582,11 +612,14 @@ public abstract class AbstractElement implements Element
 		{
 			_click();
 			success = true;
-			PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "click", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false );
+			PageManager.instance().addExecutionLog( getExecutionId(), getDeviceName(), pageName, elementName, "click", System.currentTimeMillis(), System.currentTimeMillis() - startTime, success ? StepStatus.SUCCESS : StepStatus.FAILURE, getKey(), null, 0, "", false, null );
 		}
 		catch( Exception e )
 		{
-			throw new IllegalStateException( e );
+		    if ( e instanceof XFramiumException )
+		        throw e;
+		    else
+		        throw new ScriptConfigurationException( e.getMessage() );
 		}
 		finally
 		{			

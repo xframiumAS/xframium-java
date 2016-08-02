@@ -76,8 +76,19 @@ public class SimpleDevice implements Device
 	
 	private String resolution;
 	private String environment;
+	private String cloud;
 	
-	public String getResolution()
+	public String getCloud()
+    {
+        return cloud;
+    }
+
+    public void setCloud( String cloud )
+    {
+        this.cloud = cloud;
+    }
+
+    public String getResolution()
     {
         return resolution;
     }
@@ -109,22 +120,22 @@ public class SimpleDevice implements Device
 	            stringBuilder.append( " " ).append( model );
 	            
 	    }
-	    else if ( browserName != null )
+	    
+	    if ( os != null )
+        {
+            stringBuilder.append( " / " ).append( os );
+            if ( osVersion != null )
+                stringBuilder.append( " " ).append( osVersion );
+        }
+	    
+	    if ( browserName != null )
 	    {
-	        stringBuilder.append( browserName );
+	        stringBuilder.append( " " ).append( browserName );
 	        if ( browserVersion != null )
 	            stringBuilder.append( " " ).append( browserVersion );
 	    }
-	    else
-	        stringBuilder.append( "Unknown Device" );
 	    
-	    if ( os != null )
-	    {
-	        stringBuilder.append( " / " ).append( os );
-	        if ( osVersion != null )
-	            stringBuilder.append( " " ).append( osVersion );
-	    }
-	    
+	   
 	    if ( resolution != null )
 	        stringBuilder.append( " (" ).append( resolution ).append( ")" );
 	    

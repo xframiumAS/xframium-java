@@ -79,6 +79,18 @@ public class DeviceManager implements ArtifactListener
     private Device selectedDevice;
     
     private List<WebDriver> holdList = new ArrayList<WebDriver>( 10 );
+    
+    private String[] tagNames;
+
+    public String[] getTagNames()
+    {
+        return tagNames;
+    }
+
+    public void setTagNames( String[] tagNames )
+    {
+        this.tagNames = tagNames;
+    }
 
     public List<WebDriver> getHoldList()
     {
@@ -264,7 +276,7 @@ public class DeviceManager implements ArtifactListener
     private Comparator<Device> deviceComparator = new WeightedDeviceComparator();
 	
     /** The retry count. */
-    private int retryCount = 25;
+    private int retryCount = 3;
 
     /** The analytics map. */
     private Map<String, DeviceAnalytics> analyticsMap = new HashMap<String, DeviceAnalytics>( 20 );
@@ -602,7 +614,7 @@ public class DeviceManager implements ArtifactListener
                                     if (log.isDebugEnabled())
                                         log.debug( Thread.currentThread().getName() + ": A registered RUN LISTENER cancelled this device request - Releasing Semaphore for " + currentDevice );
 		
-                                    currentDevice.getLock().release();
+                                    releaseDevice( currentDevice );
                                 }
                                 else
                                 {
@@ -655,7 +667,7 @@ public class DeviceManager implements ArtifactListener
                                         //
                                         if (log.isDebugEnabled())
                                             log.debug( Thread.currentThread().getName() + ": Releasing unused Device Semaphore for " + currentDevice );
-                                        currentDevice.getLock().release();
+                                        releaseDevice( currentDevice );
 										
                                     }
                                     else
@@ -671,7 +683,7 @@ public class DeviceManager implements ArtifactListener
                             {
                                 if (log.isDebugEnabled())
                                     log.debug( Thread.currentThread().getName() + ": Releasing unused Device Semaphore for " + currentDevice );
-                                currentDevice.getLock().release();
+                                releaseDevice( currentDevice );
                             }
                         }
                     }
@@ -774,8 +786,6 @@ public class DeviceManager implements ArtifactListener
      */
     public void releaseDevice( Device currentDevice )
     {
-        if (log.isDebugEnabled())
-            log.debug( Thread.currentThread().getName() + ": Releasing Device Semaphore for " + currentDevice );
         currentDevice.getLock().release();
     }
 

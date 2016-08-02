@@ -46,6 +46,7 @@ import org.xframium.page.keyWord.step.spi.KWSDevice;
 import org.xframium.page.keyWord.step.spi.KWSDumpState;
 import org.xframium.page.keyWord.step.spi.KWSElse;
 import org.xframium.page.keyWord.step.spi.KWSExecJS;
+import org.xframium.page.keyWord.step.spi.KWSExecWS;
 import org.xframium.page.keyWord.step.spi.KWSExists;
 import org.xframium.page.keyWord.step.spi.KWSFocus;
 import org.xframium.page.keyWord.step.spi.KWSFork;
@@ -56,12 +57,14 @@ import org.xframium.page.keyWord.step.spi.KWSGetCookies;
 import org.xframium.page.keyWord.step.spi.KWSLoop;
 import org.xframium.page.keyWord.step.spi.KWSMath;
 import org.xframium.page.keyWord.step.spi.KWSMouse;
+import org.xframium.page.keyWord.step.spi.KWSNavigate;
 import org.xframium.page.keyWord.step.spi.KWSOpenPage;
+import org.xframium.page.keyWord.step.spi.KWSOperator;
 import org.xframium.page.keyWord.step.spi.KWSPerfectoScript;
 import org.xframium.page.keyWord.step.spi.KWSReport;
 import org.xframium.page.keyWord.step.spi.KWSReturn;
-import org.xframium.page.keyWord.step.spi.KWSSet;
 import org.xframium.page.keyWord.step.spi.KWSSQL;
+import org.xframium.page.keyWord.step.spi.KWSSet;
 import org.xframium.page.keyWord.step.spi.KWSString;
 import org.xframium.page.keyWord.step.spi.KWSSync;
 import org.xframium.page.keyWord.step.spi.KWSValue;
@@ -130,6 +133,7 @@ public class KeyWordStepFactory
         addKeyWord( "VERIFY_CONTRAST", KWSContrastRatio.class );
         addKeyWord( "WINDOW", KWSWindow.class );
         addKeyWord( "EXECJS", KWSExecJS.class );
+        addKeyWord( "EXECWS", KWSExecWS.class );
         addKeyWord( "OPEN_PAGE", KWSOpenPage.class );
         addKeyWord( "ADD_COOKIE", KWSAddCookie.class );
         addKeyWord( "DELETE_COOKIE", KWSDeleteCookie.class );
@@ -152,6 +156,8 @@ public class KeyWordStepFactory
         addKeyWord( "STATE", KWSDumpState.class );
         addKeyWord( "ALERT", KWSAlert.class );
         addKeyWord( "SQL", KWSSQL.class );
+        addKeyWord( "OPERATOR", KWSOperator.class );
+        addKeyWord( "NAVIGATE", KWSNavigate.class );
     }
 
     /**

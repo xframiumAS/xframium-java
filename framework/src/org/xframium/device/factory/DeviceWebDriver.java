@@ -64,6 +64,7 @@ import org.xframium.device.ConnectedDevice;
 import org.xframium.device.DeviceManager;
 import org.xframium.device.artifact.Artifact;
 import org.xframium.device.artifact.ArtifactProducer;
+import org.xframium.device.cloud.CloudDescriptor;
 import org.xframium.device.interrupt.DeviceInterrupt;
 import org.xframium.device.interrupt.DeviceInterruptThread;
 import org.xframium.spi.Device;
@@ -71,14 +72,16 @@ import org.xframium.spi.PropertyProvider;
 import org.xframium.spi.driver.CachingDriver;
 import org.xframium.spi.driver.DeviceProvider;
 import org.xframium.spi.driver.NativeDriverProvider;
+import org.xframium.spi.driver.ReportiumProvider;
 import org.xframium.utility.XMLEscape;
+import com.perfecto.reportium.client.ReportiumClient;
 import io.appium.java_client.AppiumDriver;
 
 // TODO: Auto-generated Javadoc
 /**
  * The Class DeviceWebDriver.
  */
-public class DeviceWebDriver implements HasCapabilities, WebDriver, JavascriptExecutor, ContextAware, ExecuteMethod, ArtifactProducer, NativeDriverProvider, PropertyProvider, TakesScreenshot, DeviceProvider, HasInputDevices, CachingDriver
+public class DeviceWebDriver implements HasCapabilities, WebDriver, JavascriptExecutor, ContextAware, ExecuteMethod, ArtifactProducer, NativeDriverProvider, PropertyProvider, TakesScreenshot, DeviceProvider, HasInputDevices, CachingDriver, ReportiumProvider
 {
 
     private List<DeviceInterrupt> interruptList;
@@ -103,10 +106,36 @@ public class DeviceWebDriver implements HasCapabilities, WebDriver, JavascriptEx
     /** The current device. */
     private Device currentDevice;
     private Device populatedDevice;
+    private CloudDescriptor cloud;
+    
+    public CloudDescriptor getCloud()
+    {
+        return cloud;
+    }
+
+    public void setCloud( CloudDescriptor cloud )
+    {
+        this.cloud = cloud;
+    }
+
+    private ReportiumClient reportiumClient;
+
+    public ReportiumClient getReportiumClient()
+    {
+        return reportiumClient;
+    }
+
+    public void setReportiumClient( ReportiumClient reportiumClient )
+    {
+        this.reportiumClient = reportiumClient;
+    }
 
     public Device getPopulatedDevice()
     {
-        return populatedDevice;
+        if ( populatedDevice == null )
+            return currentDevice;
+        else
+            return populatedDevice;
     }
 
     public void setPopulatedDevice( Device populatedDevice )

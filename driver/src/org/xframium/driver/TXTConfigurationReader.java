@@ -2,6 +2,7 @@ package org.xframium.driver;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,6 +21,7 @@ import org.xframium.content.ContentManager;
 import org.xframium.content.provider.ExcelContentProvider;
 import org.xframium.content.provider.SQLContentProvider;
 import org.xframium.content.provider.XMLContentProvider;
+import org.xframium.debugger.DebugManager;
 import org.xframium.device.ConnectedDevice;
 import org.xframium.device.DeviceManager;
 import org.xframium.device.cloud.CSVCloudProvider;
@@ -53,8 +55,9 @@ import org.xframium.page.element.provider.SQLElementProvider;
 import org.xframium.page.element.provider.XMLElementProvider;
 import org.xframium.page.keyWord.KeyWordDriver;
 import org.xframium.page.keyWord.KeyWordTest;
-import org.xframium.page.keyWord.provider.XMLKeyWordProvider;
+import org.xframium.page.keyWord.provider.ExcelKeyWordProvider;
 import org.xframium.page.keyWord.provider.SQLKeyWordProvider;
+import org.xframium.page.keyWord.provider.XMLKeyWordProvider;
 import org.xframium.spi.CSVRunListener;
 import org.xframium.spi.RunDetails;
 import org.xframium.utility.SeleniumSessionManager;
@@ -228,6 +231,19 @@ public class TXTConfigurationReader extends AbstractConfigurationReader
                     artifactList.add( ArtifactType.valueOf( type ) );
                     if ( type.equals( "FAILURE_SOURCE" ) )
                     	artifactList.add( ArtifactType.FAILURE_SOURCE_HTML );
+                    
+                    if ( type.equals( "DEBUGGER" ) )
+                    {
+                        try
+                        {
+                            DebugManager.instance().startUp( InetAddress.getLocalHost().getHostAddress(), 8870 );
+                            KeyWordDriver.instance().addStepListener( DebugManager.instance() );
+                        }
+                        catch( Exception e )
+                        {
+                            e.printStackTrace();
+                        }
+                    }
                     
                     if ( ArtifactType.valueOf( type ).equals( ArtifactType.CONSOLE_LOG ) )
                     {
@@ -513,6 +529,14 @@ public class TXTConfigurationReader extends AbstractConfigurationReader
 
                 break;
             }
+            
+            case "EXCEL":
+            {
+                KeyWordDriver.instance().loadTests( new ExcelKeyWordProvider( findFile( configFolder, new File( configProperties.getProperty( DRIVER[1] ) ) ) ) );
+                keywordsloaded = true;
+
+                break;
+            }
 
             case "SQL":
             case "OBJ-SQL":
@@ -566,6 +590,7 @@ public class TXTConfigurationReader extends AbstractConfigurationReader
             String tagNames = configProperties.getProperty( "driver.tagNames" );
             if ( tagNames != null && !tagNames.isEmpty() )
             {
+                DeviceManager.instance().setTagNames( tagNames.split( "," ) );
                 Collection<KeyWordTest> testList = KeyWordDriver.instance().getTaggedTests( tagNames.split( "," ) );
                 
                 if ( testList.isEmpty() )

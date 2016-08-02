@@ -20,6 +20,9 @@
  *******************************************************************************/
 package org.xframium.page.keyWord;
 
+import java.util.ArrayList;
+import java.util.List;
+
 // TODO: Auto-generated Javadoc
 /**
  * The Class KeyWordParameter.
@@ -53,12 +56,34 @@ public class KeyWordParameter
 
     /** The value. */
     private String value;
-    
+
+    /** The file name */
     private String fileName;
 
-    public void setValue( String value )
+    /** The name. */
+    private String name;
+
+    /** The usage. */
+    private String usage;
+
+    /** The token list. */
+    private List<KeyWordToken> tokenList = new ArrayList<KeyWordToken>( 10 );
+
+    /**
+     * Instantiates a new key word parameter.
+     *
+     * @param type
+     *            the type
+     * @param value
+     *            the value
+     */
+    public KeyWordParameter( ParameterType type, String value, String name, String usage )
     {
+        super();
+        this.type = type;
         this.value = value;
+        this.name = name;
+        this.usage = usage;
     }
 
     public String getFileName()
@@ -71,29 +96,39 @@ public class KeyWordParameter
         this.fileName = fileName;
     }
 
-    /**
-     * Instantiates a new key word parameter.
-     *
-     * @param type
-     *            the type
-     * @param value
-     *            the value
-     */
-    public KeyWordParameter( ParameterType type, String value )
-    {
-        super();
-        this.type = type;
-        this.value = value;
-    }
-
-    /**
-     * Gets the value.
-     *
-     * @return the value
-     */
     public String getValue()
     {
         return value;
+    }
+
+    public void setValue( String value )
+    {
+        this.value = value;
+    }
+    
+    public String getName()
+    {
+        return name;
+    }
+
+    public String getUsage()
+    {
+        return usage;
+    }
+    
+    /**
+     * Gets the token list.
+     *
+     * @return the token list
+     */
+    public List<KeyWordToken> getTokenList()
+    {
+        return tokenList;
+    }
+    
+    public void addToken( KeyWordToken token )
+    {
+        tokenList.add( token );
     }
 
     /**

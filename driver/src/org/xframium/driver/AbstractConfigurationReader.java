@@ -4,9 +4,12 @@ import java.awt.Desktop;
 import java.io.File;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openqa.selenium.WebDriver;
 import org.testng.TestNG;
 import org.xframium.application.ApplicationRegistry;
 import org.xframium.artifact.ArtifactType;
+import org.xframium.debugger.DebugManager;
+import org.xframium.device.DeviceManager;
 import org.xframium.device.cloud.CloudRegistry;
 import org.xframium.device.data.DataManager;
 import org.xframium.gesture.GestureManager;
@@ -132,7 +135,9 @@ public abstract class AbstractConfigurationReader implements ConfigurationReader
                 }
             }
             
-            
+            if( DataManager.instance().isArtifactEnabled( ArtifactType.DEBUGGER ) )
+                DebugManager.instance().shutDown();
+
         }
         catch( Exception e )
         {
@@ -163,11 +168,11 @@ public abstract class AbstractConfigurationReader implements ConfigurationReader
     protected void runTest( String outputFolder, Class theTest )
     {
         RunDetails.instance().setStartTime();
-        
         TestNG testNg = new TestNG( true );
         testNg.setVerbose( 10 );
         testNg.setOutputDirectory( outputFolder + System.getProperty( "file.separator" ) + "testNg" );
         testNg.setTestClasses( new Class[] { theTest } );
         testNg.run();
+
     }
 }

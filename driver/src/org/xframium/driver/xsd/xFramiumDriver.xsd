@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="http://xframium.org/xsl/xs3p.xsl"?>
 <schema xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.xframium.org/xFramiumDriver" xmlns:tns="http://www.xframium.org/xFramiumDriver" elementFormDefault="qualified">
   <annotation>
     <documentation xml:lang="en">
@@ -9,6 +10,7 @@
   <element name="xFramium" type="tns:xFramiumRoot" />
 
   <complexType name="xFramiumRoot">
+  
     <sequence>
       <element name="cloud" type="tns:xCloud" minOccurs="1" maxOccurs="1" />
       <element name="application" type="tns:xApplication" minOccurs="1" maxOccurs="1" />
@@ -45,6 +47,7 @@
   <complexType name="xDevice">
     <sequence>
       <element name="capability" type="tns:xDeviceCapability" minOccurs="0" maxOccurs="unbounded" />
+      <element name="objectCapability" type="tns:xObjectDeviceCapability" minOccurs="0" maxOccurs="unbounded" />
     </sequence>
     <attribute name="name" type="string" use="required" />
     <attribute name="manufacturer" type="string" use="required" />
@@ -56,6 +59,7 @@
     <attribute name="browserVersion" type="string" use="optional" />
     <attribute name="active" type="boolean" use="optional" default="true" />
     <attribute name="availableDevices" type="integer" use="optional" default="1" />
+    <attribute name="cloud" type="string" use="optional" />
   </complexType>
 
   <complexType name="xContent">
@@ -89,6 +93,7 @@
   <complexType name="xApplication">
     <sequence>
       <element name="capability" type="tns:xDeviceCapability" minOccurs="0" maxOccurs="unbounded" />
+      <element name="objectCapability" type="tns:xObjectDeviceCapability" minOccurs="0" maxOccurs="unbounded" />
     </sequence>
     <attribute name="fileName" type="string" use="optional" />
     <attribute name="provider" use="optional" default="LOCAL">
@@ -155,6 +160,7 @@
           <enumeration value="EXECUTION_RECORD_HTML" />
           <enumeration value="EXECUTION_RECORD_CSV" />
           <enumeration value="CONSOLE_LOG" />
+          <enumeration value="REPORTIUM" />
         </restriction>
       </simpleType>
     </attribute>
@@ -260,6 +266,7 @@
       <simpleType>
         <restriction base="string">
           <enumeration value="XML" />
+          <enumeration value="EXCEL" />
           <enumeration value="LOCAL" />
         </restriction>
       </simpleType>
@@ -288,8 +295,17 @@
   <complexType name="xTest">
     <sequence>
       <element name="description" type="tns:xDescription" minOccurs="0" maxOccurs="1" />
-      <element name="step" type="tns:xStep" minOccurs="1" maxOccurs="unbounded" />
+      <element name="step" type="tns:xStep" minOccurs="0" maxOccurs="unbounded" />
     </sequence>
+    <attribute name="type" use="optional" default="XML">
+      <simpleType>
+        <restriction base="string">
+          <enumeration value="XML" />
+          <enumeration value="BDD" />
+          <enumeration value="CSV" />
+        </restriction>
+      </simpleType>
+    </attribute>
     <attribute name="name" type="string" use="required" />
     <attribute name="dataDriver" type="string" use="optional" />
     <attribute name="dataProvider" type="string" use="optional" />
@@ -361,6 +377,8 @@
           <enumeration value="STATE" />
           <enumeration value="ALERT" />
           <enumeration value="SQL" />
+          <enumeration value="OPERATOR" />
+          <enumeration value="NAVIGATE" />
         </restriction>
       </simpleType>
     </attribute>
@@ -414,6 +432,9 @@
   </complexType>
 
   <complexType name="xParameter">
+    <sequence>
+      <element name="token" type="tns:xToken" minOccurs="0" maxOccurs="unbounded" />
+    </sequence>
     <attribute name="type" use="required">
       <simpleType>
         <restriction base="string">
@@ -427,8 +448,34 @@
       </simpleType>
     </attribute>
     <attribute name="value" type="string" use="required" />
+    <attribute name="name" type="string" use="optional" />
   </complexType>
 
+	<complexType name="xObjectDeviceCapability">
+		<sequence>
+			<element name="capabilities" type="tns:xCapabilities" minOccurs="0" maxOccurs="unbounded" />
+		</sequence>
+		<attribute name="name" type="string" use="required" />
+	</complexType>
 
-
+	<complexType name="xCapabilities">
+		<sequence>
+			<element name="options" type="tns:xOptions" minOccurs="0" maxOccurs="unbounded" />
+		</sequence>
+		<attribute name="factoryName" use="required">
+			<simpleType>
+				<restriction base="string">
+					<enumeration value="ChromeOptions" />
+				</restriction>
+			</simpleType>
+		</attribute>
+	</complexType>
+	
+	<complexType name="xOptions">
+		<simpleContent>
+			<extension base="string">
+				<attribute name="name" type="string" use="required" />
+			</extension>
+		</simpleContent>
+	</complexType>
 </schema>

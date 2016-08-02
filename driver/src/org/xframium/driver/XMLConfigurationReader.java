@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,6 +31,7 @@ import org.xframium.content.ContentManager;
 import org.xframium.content.provider.ExcelContentProvider;
 import org.xframium.content.provider.SQLContentProvider;
 import org.xframium.content.provider.XMLContentProvider;
+import org.xframium.debugger.DebugManager;
 import org.xframium.device.ConnectedDevice;
 import org.xframium.device.DeviceManager;
 import org.xframium.device.SimpleDevice;
@@ -93,12 +95,15 @@ import org.xframium.page.keyWord.KeyWordStep.ValidationType;
 import org.xframium.page.keyWord.KeyWordTest;
 import org.xframium.page.keyWord.KeyWordToken;
 import org.xframium.page.keyWord.KeyWordToken.TokenType;
-import org.xframium.page.keyWord.provider.XMLKeyWordProvider;
+import org.xframium.page.keyWord.gherkinExtension.XMLFormatter;
+import org.xframium.page.keyWord.matrixExtension.MatrixTest;
+import org.xframium.page.keyWord.provider.ExcelKeyWordProvider;
 import org.xframium.page.keyWord.provider.SQLKeyWordProvider;
+import org.xframium.page.keyWord.provider.XMLKeyWordProvider;
 import org.xframium.page.keyWord.step.KeyWordStepFactory;
-import org.xframium.spi.Device;
 import org.xframium.spi.RunDetails;
 import org.xframium.utility.SeleniumSessionManager;
+import gherkin.parser.Parser;
 
 public class XMLConfigurationReader extends AbstractConfigurationReader implements ElementProvider
 {
@@ -301,6 +306,19 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
             artifactList.add( ArtifactType.valueOf( artifact.getType() ) );
             if ( artifact.getType().equals( "FAILURE_SOURCE" ) )
             	artifactList.add( ArtifactType.FAILURE_SOURCE_HTML );
+            else if ( artifact.getType().equals( "DEBUGGER" ) )
+            {
+                try
+                {
+                    DebugManager.instance().startUp( InetAddress.getLocalHost().getHostAddress(), 8870 );
+                    KeyWordDriver.instance().addStepListener( DebugManager.instance() );
+                }
+                catch( Exception e )
+                {
+                    e.printStackTrace();
+                }
+            }
+                
         }
         
         DataManager.instance().setAutomaticDownloads( artifactList.toArray( new ArtifactType[0] ) );
@@ -537,7 +555,9 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
                 break;
         }
         
-        Device currentDevice = new SimpleDevice(device.getName(), device.getManufacturer(), device.getModel(), device.getOs(), device.getOsVersion(), device.getBrowserName(), null, device.getAvailableDevices().intValue(), driverName, device.isActive(), device.getId() );
+        SimpleDevice currentDevice = new SimpleDevice(device.getName(), device.getManufacturer(), device.getModel(), device.getOs(), device.getOsVersion(), device.getBrowserName(), device.getBrowserVersion(), device.getAvailableDevices().intValue(), driverName, device.isActive(), device.getId() );
+        if ( device.getCloud() != null && !device.getCloud().isEmpty() )
+            currentDevice.setCloud( device.getCloud() );
         if ( device.getCapability() != null )
         {
             for ( XDeviceCapability cap : device.getCapability() )
@@ -624,28 +644,59 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
                         continue;
                     }
                     
-                    KeyWordTest currentTest = parseTest( test, "test" );
-                    
-                    if (currentTest.getDataDriver() != null && !currentTest.getDataDriver().isEmpty())
+                    if ( test.getType().equals( "BDD" ) )
                     {
-                        PageData[] pageData = PageDataManager.instance().getRecords( currentTest.getDataDriver() );
-                        if (pageData == null)
+                        XMLFormatter xmlFormatter = new XMLFormatter( PageDataManager.instance().getDataProvider() );
+                        Parser bddParser = new Parser( xmlFormatter );
+                        bddParser.parse( test.getDescription().getValue(), "", 0 );
+                        PageDataManager.instance().setPageDataProvider( xmlFormatter );
+                    }
+                    else if ( test.getType().equals( "CSV" ) )
+                    {
+                        StringBuilder stringBuilder = new StringBuilder();
+                        stringBuilder.append( test.getName() );
+                        stringBuilder.append( ",Test,," );
+                        stringBuilder.append( test.getDataProvider()!= null ? test.getDataProvider() : "" );
+                        stringBuilder.append( "," );
+                        stringBuilder.append( test.getDataDriver()!= null ? test.getDataDriver() : "" );
+                        stringBuilder.append( "," );
+                        stringBuilder.append( test.getTagNames() != null ? test.getTagNames() : "" );
+                        stringBuilder.append( ",," );
+                        stringBuilder.append( test.isTimed() );
+                        stringBuilder.append( ",0," );
+                        stringBuilder.append( test.isActive() );
+                        stringBuilder.append( "," );
+                        stringBuilder.append( test.getOs()!= null ? test.getOs() : "" );
+                        
+                        MatrixTest matrixTest = new MatrixTest( stringBuilder.toString(), test.getDescription().getValue() );
+                        
+                        KeyWordDriver.instance().addTest( matrixTest.createTest() );
+                    }
+                    else if ( test.getType().equals( "XML" ) )
+                    {
+                        KeyWordTest currentTest = parseTest( test, "test" );
+                        
+                        if (currentTest.getDataDriver() != null && !currentTest.getDataDriver().isEmpty())
                         {
-                            log.warn( "Specified Data Driver [" + currentTest.getDataDriver() + "] could not be located. Make sure it exists and it was populated prior to initializing your keyword factory" );
-                            KeyWordDriver.instance().addTest( currentTest );
-                        }
-                        else
-                        {
-                            String testName = currentTest.getName();
-
-                            for (PageData record : pageData)
+                            PageData[] pageData = PageDataManager.instance().getRecords( currentTest.getDataDriver() );
+                            if (pageData == null)
                             {
-                                KeyWordDriver.instance().addTest( currentTest.copyTest( testName + "!" + record.getName() ) );
+                                log.warn( "Specified Data Driver [" + currentTest.getDataDriver() + "] could not be located. Make sure it exists and it was populated prior to initializing your keyword factory" );
+                                KeyWordDriver.instance().addTest( currentTest );
+                            }
+                            else
+                            {
+                                String testName = currentTest.getName();
+    
+                                for (PageData record : pageData)
+                                {
+                                    KeyWordDriver.instance().addTest( currentTest.copyTest( testName + "!" + record.getName() ) );
+                                }
                             }
                         }
+                        else
+                            KeyWordDriver.instance().addTest( currentTest );
                     }
-                    else
-                        KeyWordDriver.instance().addTest( currentTest );
                 }
                 
                 for( XTest test : xRoot.getSuite().getFunction() )
@@ -664,6 +715,11 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
             
             case "XML":
                 KeyWordDriver.instance().loadTests( new XMLKeyWordProvider( findFile( configFolder, new File( xRoot.getSuite().getFileName() ) ) ) );
+
+                break;
+                
+            case "EXCEL":
+                KeyWordDriver.instance().loadTests( new ExcelKeyWordProvider( findFile( configFolder, new File( xRoot.getSuite().getFileName() ) ) ) );
 
                 break;
 
@@ -720,6 +776,7 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
         String tagNames = xRoot.getDriver().getTagNames();
         if ( tagNames != null && !tagNames.isEmpty() )
         {
+            DeviceManager.instance().setTagNames( tagNames.split( "," ) );
             Collection<KeyWordTest> testList = KeyWordDriver.instance().getTaggedTests( tagNames.split( "," ) );
 
             if ( testList.isEmpty() )
@@ -770,8 +827,6 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
         return true;
     }
     
-    
-    
     private void parseModel( XModel model )
     {
         for ( XPage page : model.getPage() )
@@ -802,7 +857,7 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
      * @return the key word test
      */
     private KeyWordTest parseTest( XTest xTest, String typeName )
-    {
+    { 
         KeyWordTest test = new KeyWordTest( xTest.getName(), xTest.isActive(), xTest.getDataProvider(), xTest.getDataDriver(), xTest.isTimed(), xTest.getLinkId(), xTest.getOs(), xTest.getThreshold().intValue(), xTest.getDescription() != null ? xTest.getDescription().getValue() : null, xTest.getTagNames() );
         
         KeyWordStep[] steps = parseSteps( xTest.getStep(), xTest.getName(), typeName );
@@ -865,7 +920,15 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
 
         for ( XParameter p : pList )
         {
-            KeyWordParameter kp = new KeyWordParameter( ParameterType.valueOf( p.getType() ), p.getValue() );
+            KeyWordParameter kp = new KeyWordParameter( ParameterType.valueOf( p.getType() ), p.getValue(), null, null );
+            
+            if ( p.getToken() != null && !p.getToken().isEmpty() )
+            {
+                for ( XToken t : p.getToken() )
+                {
+                    kp.addToken( new KeyWordToken( TokenType.valueOf(t.getType() ), t.getValue(), t.getName() ) );
+                }
+            }
             
             if ( p.equals( ParameterType.FILE ) )
             {
@@ -961,7 +1024,8 @@ public class XMLConfigurationReader extends AbstractConfigurationReader implemen
     {
         switch ( xRoot.getSuite().getProvider() )
         {
-            case "XML": 
+            case "XML":
+            case "EXCEL": 
             case "LOCAL":
             case "LOCAL-SQL":
             {

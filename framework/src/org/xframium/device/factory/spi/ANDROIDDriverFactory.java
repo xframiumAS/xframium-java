@@ -31,6 +31,7 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 import org.xframium.application.ApplicationRegistry;
 import org.xframium.device.DeviceManager;
 import org.xframium.device.artifact.api.PerfectoArtifactProducer;
+import org.xframium.device.cloud.CloudDescriptor;
 import org.xframium.device.cloud.CloudRegistry;
 import org.xframium.device.cloud.action.CloudActionProvider;
 import org.xframium.device.factory.AbstractDriverFactory;
@@ -59,6 +60,17 @@ public class ANDROIDDriverFactory extends AbstractDriverFactory
 			DesiredCapabilities dc = new DesiredCapabilities( "", "", Platform.ANY );
 			URL hubUrl = new URL( CloudRegistry.instance().getCloud().getCloudUrl() );
 			
+			CloudDescriptor useCloud = CloudRegistry.instance().getCloud();
+            
+            if ( currentDevice.getCloud() != null )
+            {
+                useCloud = CloudRegistry.instance().getCloud( currentDevice.getCloud() );
+                if (useCloud == null)
+                {
+                    useCloud = CloudRegistry.instance().getCloud();
+                    log.warn( "A separate grid instance was specified but it does not exist in your cloud registry [" + currentDevice.getCloud() + "] - using the default Cloud instance" );
+                }
+            }
 
 			if ( currentDevice.getDeviceName() != null && !currentDevice.getDeviceName().isEmpty() )
 			{
@@ -75,10 +87,10 @@ public class ANDROIDDriverFactory extends AbstractDriverFactory
 			dc.setCapability( PASSWORD, CloudRegistry.instance().getCloud().getPassword() );
 			
 			for ( String name : currentDevice.getCapabilities().keySet() )
-				dc.setCapability( name, currentDevice.getCapabilities().get( name ) );
+				dc = setCapabilities(currentDevice.getCapabilities().get(name), dc, name);
 			
 			for ( String name : ApplicationRegistry.instance().getAUT().getCapabilities().keySet() )
-				dc.setCapability( name, ApplicationRegistry.instance().getAUT().getCapabilities().get( name ) );
+				dc = setCapabilities(ApplicationRegistry.instance().getAUT().getCapabilities().get( name ), dc, name);
 			
 			dc.setCapability( AUTOMATION_NAME, "Appium" );
 			
@@ -91,7 +103,7 @@ public class ANDROIDDriverFactory extends AbstractDriverFactory
 			webDriver.manage().timeouts().implicitlyWait( 10, TimeUnit.SECONDS );
 			
 			Capabilities caps = ( (AndroidDriver) webDriver.getWebDriver() ).getCapabilities();
-			webDriver.setExecutionId( caps.getCapability( "executionId" ).toString() );
+			webDriver.setExecutionId( useCloud.getCloudActionProvider().getExecutionId( webDriver ) );
 			webDriver.setReportKey( caps.getCapability( "reportKey" ).toString() );
 			webDriver.setDeviceName( caps.getCapability( "deviceName" ).toString() );
 			webDriver.setWindTunnelReport( caps.getCapability( "windTunnelReportUrl" ).toString() );
@@ -112,7 +124,8 @@ public class ANDROIDDriverFactory extends AbstractDriverFactory
 			
 			String interruptString = ApplicationRegistry.instance().getAUT().getCapabilities().get( "deviceInterrupts" )  != null ? (String)ApplicationRegistry.instance().getAUT().getCapabilities().get( "deviceInterrupts" ) : DeviceManager.instance().getDeviceInterrupts();
 			webDriver.setDeviceInterrupts( getDeviceInterrupts( interruptString, webDriver.getExecutionId(), webDriver.getDeviceName() ) );
-			webDriver.setArtifactProducer( new PerfectoArtifactProducer() );
+			webDriver.setArtifactProducer( getCloudActionProvider( useCloud ).getArtifactProducer() );
+			webDriver.setCloud( useCloud );
 			return webDriver;
 		}
 	

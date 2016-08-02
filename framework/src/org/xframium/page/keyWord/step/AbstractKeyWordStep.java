@@ -29,8 +29,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
+import org.xframium.artifact.ArtifactType;
 import org.xframium.content.ContentManager;
+import org.xframium.device.data.DataManager;
+import org.xframium.device.factory.DeviceWebDriver;
 import org.xframium.exception.ObjectConfigurationException;
+import org.xframium.exception.ScriptConfigurationException;
 import org.xframium.integrations.perfectoMobile.rest.PerfectoMobile;
 import org.xframium.integrations.perfectoMobile.rest.services.WindTunnel.Status;
 import org.xframium.page.ElementDescriptor;
@@ -39,11 +43,13 @@ import org.xframium.page.PageManager;
 import org.xframium.page.StepStatus;
 import org.xframium.page.data.PageData;
 import org.xframium.page.element.Element;
+import org.xframium.page.keyWord.KeyWordDriver;
 import org.xframium.page.keyWord.KeyWordParameter;
 import org.xframium.page.keyWord.KeyWordStep;
 import org.xframium.page.keyWord.KeyWordToken;
 import org.xframium.page.keyWord.step.spi.KWSElse;
 import org.xframium.page.keyWord.step.spi.KWSLoopBreak;
+import org.xframium.spi.driver.ReportiumProvider;
 
 // TODO: Auto-generated Javadoc
 /**
@@ -502,14 +508,16 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
                     clonedElement.addToken( token.getName(), getTokenValue( token, contextMap, dataMap ) );
                 }
 
+                clonedElement.setCacheNative( true );
                 return clonedElement;
             }
             else
             {
                 try
                 {
-                    Element elt = pageObject.getElement( pageName, useName );
+                    Element elt = pageObject.getElement( pageName, useName ).cloneElement();
                     elt.setDriver( webDriver );
+                    elt.setCacheNative( true );
                     return elt;
                 }
                 catch( NullPointerException e )
@@ -593,8 +601,30 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
             try
             {
                 WebDriver altWebDriver = getAltWebDriver();
-
+                
+                //
+                // Listener integrations for individual steps
+                //
+                if ( !KeyWordDriver.instance().notifyBeforeStep( altWebDriver != null ? altWebDriver : webDriver, this ) )
+                {
+                    log.warn( "Test Step was skipped due to a failed step notification listener" );
+                    return true;
+                }
+                
+                if ( ( (DeviceWebDriver) webDriver ).getCloud().getProvider().equals( "PERFECTO" ) )
+                {
+                    if( DataManager.instance().isArtifactEnabled( ArtifactType.REPORTIUM ) )
+                    {
+                        if ( ( (ReportiumProvider) webDriver ).getReportiumClient() != null )
+                        {
+                            ( (ReportiumProvider) webDriver ).getReportiumClient().testStep( getPageName() + "." + getName() + " (" + getClass().getSimpleName() + ")" );
+                        }
+                    }
+                }
                 returnValue = _executeStep( pageObject, ((altWebDriver != null) ? altWebDriver : webDriver), contextMap, dataMap, pageMap );
+                
+                KeyWordDriver.instance().notifyAfterStep( altWebDriver != null ? altWebDriver : webDriver, this, returnValue ? StepStatus.SUCCESS : StepStatus.FAILURE );
+                
             }
             catch ( KWSLoopBreak lb )
             {
@@ -604,7 +634,15 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
             {
                 stepException = e;
                 returnValue = false;
-
+                try
+                {
+                    WebDriver altWebDriver = getAltWebDriver();
+                    KeyWordDriver.instance().notifyAfterStep( altWebDriver != null ? altWebDriver : webDriver, this, returnValue ? StepStatus.SUCCESS : StepStatus.FAILURE );
+                }
+                catch( Exception e2 )
+                {
+                    
+                }
                 log.info( Thread.currentThread().getName() + ": ***** Step " + name + " on page " + pageName + " failed " );
             }
 
@@ -638,10 +676,10 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
                         log.debug( Thread.currentThread().getName() + ": ***** Step " + name + " on page " + pageName + " encoundered error: ", e );
                     }
 
-                    if ( step.isInverse() )
-                    {
-                        subReturnValue = !subReturnValue;
-                    }
+                    //if ( step.isInverse() )
+                    //{
+                    //    subReturnValue = !subReturnValue;
+                    //}
 
                     if ( !subReturnValue )
                     {
@@ -705,7 +743,7 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
             if ( isRecordable() )
             {
                 PageManager.instance().addExecutionLog( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName(), getName(), getClass().getSimpleName(), startTime, System.currentTimeMillis() - startTime,
-                        returnValue ? StepStatus.SUCCESS : StepStatus.FAILURE, "", null, getThreshold(), getDescription(), false );
+                        returnValue ? StepStatus.SUCCESS : StepStatus.FAILURE, "", null, getThreshold(), getDescription(), false, null );
                 if ( isTimed() )
                     PageManager.instance().addExecutionTiming( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName() + "." + getName() + "." + getClass().getSimpleName(), System.currentTimeMillis() - startTime,
                             returnValue ? StepStatus.SUCCESS : StepStatus.FAILURE, description, threshold );
@@ -722,11 +760,11 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
                         if ( PageManager.instance().getThrowable() == null )
                         {
                             if ( stepException == null )
-                                stepException = new IllegalArgumentException( toError() );
+                                stepException = new ScriptConfigurationException( toError() );
 
                             PageManager.instance().setThrowable( stepException );
-                            PageManager.instance().addExecutionLog( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName(), getName(), getClass().getSimpleName(), startTime, System.currentTimeMillis() - startTime, StepStatus.FAILURE,
-                                    stepException.getMessage(), stepException, getThreshold(), getDescription(), false );
+                            PageManager.instance().addExecutionLog( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName(), getName(), "_" + getClass().getSimpleName(), startTime, System.currentTimeMillis() - startTime, StepStatus.FAILURE,
+                                    stepException.getMessage(), stepException, getThreshold(), getDescription(), false, new String[] { stepException.getMessage() } );
 
                             if ( isTimed() )
                                 PageManager.instance().addExecutionTiming( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName() + "." + getName() + "." + getClass().getSimpleName(), System.currentTimeMillis() - startTime,
@@ -748,8 +786,8 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
                                 stepException = new IllegalArgumentException( toError() );
 
                             PageManager.instance().setThrowable( stepException );
-                            PageManager.instance().addExecutionLog( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName(), getName(), getClass().getSimpleName(), startTime, System.currentTimeMillis() - startTime,
-                                    StepStatus.FAILURE_IGNORED, stepException.getMessage(), stepException, getThreshold(), getDescription(), false );
+                            PageManager.instance().addExecutionLog( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName(), getName(), "_" + getClass().getSimpleName(), startTime, System.currentTimeMillis() - startTime,
+                                    StepStatus.FAILURE_IGNORED, stepException.getMessage(), stepException, getThreshold(), getDescription(), false, new String[] { stepException.getMessage() } );
 
                             if ( isTimed() )
                                 PageManager.instance().addExecutionTiming( getExecutionId( webDriver ), getDeviceName( webDriver ), getPageName() + "." + getName() + "." + getClass().getSimpleName(), System.currentTimeMillis() - startTime,
@@ -1010,19 +1048,24 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
      */
     protected Object getParameterValue( KeyWordParameter param, Map<String, Object> contextMap, Map<String, PageData> dataMap )
     {
+        String returnValue;
         switch ( param.getType() )
         {
             case CONTEXT:
-                return contextMap.get( param.getValue() );
+                returnValue = contextMap.get( param.getValue() ) + "";
+                break;
 
             case STATIC:
-                return param.getValue();
+                returnValue = param.getValue();
+                break;
 
             case PROPERTY:
-                return System.getProperty( param.getValue(), "" );
+                returnValue =  System.getProperty( param.getValue(), "" );
+                break;
 
             case CONTENT:
-                return ContentManager.instance().getContentValue( param.getValue() );
+                returnValue = ContentManager.instance().getContentValue( param.getValue() );
+                break;
 
             case DATA:
                 int dotPosition = param.getValue().lastIndexOf( "." );
@@ -1031,22 +1074,39 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
                 PageData pageData = getPageData( param.getValue(), dataMap );
                 if ( pageData == null )
                 {
-                    throw new IllegalArgumentException( Thread.currentThread().getName() + ": The Page Data record type [" + tableName + "] does not exist for this test - chexk your dataProvider or dataDriver attribute" );
+                    throw new ScriptConfigurationException( Thread.currentThread().getName() + ": The Page Data record type [" + tableName + "] does not exist for this test - check your dataProvider or dataDriver attribute" );
                 }
 
-                Object returnValue = pageData.getData( recordName );
+                returnValue = pageData.getData( recordName );
 
                 if ( returnValue == null )
-                    throw new IllegalArgumentException(
+                    throw new ScriptConfigurationException(
                             Thread.currentThread().getName() + ": The Page Data field [" + recordName + "] does not exist for the page data record type [" + tableName + "] - Reference one of the following fields - " + pageData );
+                break;
 
-                return returnValue;
-
+            case FILE:
+                returnValue = param.getValue();
+                for ( KeyWordToken token : param.getTokenList() )
+                {
+                    if ( log.isDebugEnabled() )
+                        log.debug( "Applying token " + token.getName() );
+                    
+                    returnValue = returnValue.replace( "{" + token.getName() + "}", getTokenValue( token, contextMap, dataMap ) );
+                }
+                break;
+                
             default:
-                throw new IllegalArgumentException( Thread.currentThread().getName() + ": Unknown Parameter Type [" + param.getValue() + "]" );
+                throw new ScriptConfigurationException( Thread.currentThread().getName() + ": Unknown Parameter Type [" + param.getValue() + "]" );
         }
+        
+        
+        
+        return returnValue;
     }
 
+    
+    
+    
     /**
      * Gets the parameter value.
      *
@@ -1081,19 +1141,19 @@ public abstract class AbstractKeyWordStep implements KeyWordStep
                 PageData pageData = getPageData( token.getValue(), dataMap );
                 if ( pageData == null )
                 {
-                    throw new IllegalArgumentException( Thread.currentThread().getName() + ": The Page Data record type [" + tableName + "] does not exist for this test - chexk your dataProvider or dataDriver attribute" );
+                    throw new ScriptConfigurationException( Thread.currentThread().getName() + ": The Page Data record type [" + tableName + "] does not exist for this test - chexk your dataProvider or dataDriver attribute" );
                 }
 
                 Object returnValue = pageData.getData( recordName );
 
                 if ( returnValue == null )
-                    throw new IllegalArgumentException(
+                    throw new ScriptConfigurationException(
                             Thread.currentThread().getName() + ": The Page Data field [" + recordName + "] does not exist for the page data record type [" + tableName + "] - Reference one of the following fields - " + pageData );
 
                 return returnValue + "";
 
             default:
-                throw new IllegalArgumentException( Thread.currentThread().getName() + ": Unknown Token Type [" + token.getValue() + "]" );
+                throw new ScriptConfigurationException( Thread.currentThread().getName() + ": Unknown Token Type [" + token.getValue() + "]" );
         }
     }
 
